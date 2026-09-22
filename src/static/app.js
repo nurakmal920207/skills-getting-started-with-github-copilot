@@ -18,16 +18,69 @@ document.addEventListener("DOMContentLoaded", () => {
         const activityCard = document.createElement("div");
         activityCard.className = "activity-card";
 
-        const spotsLeft = details.max_participants - details.participants.length;
+        const participants = Array.isArray(details.participants) ? details.participants : [];
+        const spotsLeft = details.max_participants - participants.length;
+
+        const participantList = participants.length
+          ? `<div class="participants-list">${participants
+              .map(
+                (participant) => `
+                  <span class="participant-pill">
+                    <span class="participant-email">${participant}</span>
+                    <button type="button" class="remove-participant" data-activity="${name}" data-email="${participant}" aria-label="Remove ${participant} from ${name}">×</button>
+                  </span>
+                `
+              )
+              .join("")}</div>`
+          : `<p class="participants-empty">No participants yet.</p>`;
 
         activityCard.innerHTML = `
-          <h4>${name}</h4>
+          <div class="activity-header">
+            <h4>${name}</h4>
+          </div>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <div class="participants-block">
+            <strong>Participants:</strong>
+            ${participantList}
+          </div>
         `;
 
         activitiesList.appendChild(activityCard);
+      });
+
+      document.querySelectorAll(".remove-participant").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const activity = button.dataset.activity;
+          const email = button.dataset.email;
+
+          try {
+            const response = await fetch(`/activities/${encodeURIComponent(activity)}/signup?email=${encodeURIComponent(email)}`, {
+              method: "DELETE",
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+              throw new Error(result.detail || "Unable to remove participant.");
+            }
+
+            messageDiv.textContent = result.message;
+            messageDiv.className = "success";
+            messageDiv.classList.remove("hidden");
+            fetchActivities();
+
+            setTimeout(() => {
+              messageDiv.classList.add("hidden");
+            }, 5000);
+          } catch (error) {
+            messageDiv.textContent = error.message || "Failed to remove participant.";
+            messageDiv.className = "error";
+            messageDiv.classList.remove("hidden");
+          }
+        });
+      });
 
         // Add option to select dropdown
         const option = document.createElement("option");
